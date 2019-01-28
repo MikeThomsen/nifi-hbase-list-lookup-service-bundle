@@ -1,3 +1,7 @@
+/*
+ * Sections of this code derived from code in the Apache NiFi code base.
+ */
+
 package org.apache.nifi.hbase;
 
 import org.apache.nifi.annotation.lifecycle.OnDisabled;
