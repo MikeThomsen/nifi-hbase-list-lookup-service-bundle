@@ -17,18 +17,21 @@
 package org.apache.nifi.hbase;
 
 import org.apache.hadoop.hbase.Cell;
+import org.apache.hadoop.hbase.TableName;
 import org.apache.hadoop.hbase.client.Connection;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
 import org.apache.hadoop.hbase.client.Table;
 import org.apache.hadoop.hbase.filter.Filter;
+import org.apache.nifi.annotation.lifecycle.OnEnabled;
 import org.apache.nifi.controller.AbstractControllerService;
 import org.apache.nifi.controller.ConfigurationContext;
 import org.apache.nifi.hadoop.KerberosProperties;
 import org.apache.nifi.hbase.put.PutColumn;
 import org.apache.nifi.hbase.put.PutFlowFile;
 import org.apache.nifi.hbase.scan.Column;
+import org.apache.nifi.hbase.scan.ResultCell;
 import org.apache.nifi.hbase.scan.ResultHandler;
 import org.mockito.Mockito;
 
@@ -181,9 +184,59 @@ public class MockHBaseClientService extends AbstractControllerService implements
 
     }
 
-    @Override
-    public void scan(String s, byte[] bytes, byte[] bytes1, Collection<Column> collection, List<String> list, ResultHandler resultHandler) throws IOException {
+    private ResultCell getResultCell(Cell cell) {
+        final ResultCell resultCell = new ResultCell();
+        resultCell.setRowArray(cell.getRowArray());
+        resultCell.setRowOffset(cell.getRowOffset());
+        resultCell.setRowLength(cell.getRowLength());
 
+        resultCell.setFamilyArray(cell.getFamilyArray());
+        resultCell.setFamilyOffset(cell.getFamilyOffset());
+        resultCell.setFamilyLength(cell.getFamilyLength());
+
+        resultCell.setQualifierArray(cell.getQualifierArray());
+        resultCell.setQualifierOffset(cell.getQualifierOffset());
+        resultCell.setQualifierLength(cell.getQualifierLength());
+
+        resultCell.setTimestamp(cell.getTimestamp());
+        resultCell.setTypeByte(cell.getTypeByte());
+        resultCell.setSequenceId(cell.getSequenceId());
+
+        resultCell.setValueArray(cell.getValueArray());
+        resultCell.setValueOffset(cell.getValueOffset());
+        resultCell.setValueLength(cell.getValueLength());
+
+        resultCell.setTagsArray(cell.getTagsArray());
+        resultCell.setTagsOffset(cell.getTagsOffset());
+        resultCell.setTagsLength(cell.getTagsLength());
+        return resultCell;
+    }
+
+    @Override
+    public void scan(String tableName, byte[] startRow, byte[] endRow, Collection<Column> columns, List<String> list, ResultHandler handler) throws IOException {
+        try (final Table table = connection.getTable(TableName.valueOf(tableName));
+             final ResultScanner scanner = getResults(table, startRow, endRow, columns, null)) {
+
+            for (final Result result : scanner) {
+                final byte[] rowKey = result.getRow();
+                final Cell[] cells = result.rawCells();
+
+                if (cells == null) {
+                    continue;
+                }
+
+                // convert HBase cells to NiFi cells
+                final ResultCell[] resultCells = new ResultCell[cells.length];
+                for (int i=0; i < cells.length; i++) {
+                    final Cell cell = cells[i];
+                    final ResultCell resultCell = getResultCell(cell);
+                    resultCells[i] = resultCell;
+                }
+
+                // delegate to the handler
+                handler.handle(rowKey, resultCells);
+            }
+        }
     }
 
     @Override
@@ -251,4 +304,10 @@ public class MockHBaseClientService extends AbstractControllerService implements
         return connection;
     }
 
+    private Connection connection;
+
+    @OnEnabled
+    public void onEnabled(ConfigurationContext context) throws IOException {
+        connection = createConnection(context);
+    }
 }

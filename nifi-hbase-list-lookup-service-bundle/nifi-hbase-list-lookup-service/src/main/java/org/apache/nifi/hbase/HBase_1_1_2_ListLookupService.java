@@ -13,7 +13,6 @@ import org.apache.nifi.util.StringUtils;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -21,7 +20,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-public class HBase_1_1_2_ListLookupService extends AbstractHBaseLookupService implements LookupService<Collection> {
+public class HBase_1_1_2_ListLookupService extends AbstractHBaseLookupService implements LookupService<List> {
     public static final AllowableValue KEY_LIST = new AllowableValue("key_list", "List of keys",
             "Return the row as a list of the column qualifiers (keys)");
     public static final AllowableValue VALUE_LIST = new AllowableValue("value_list", "List of values",
@@ -50,7 +49,7 @@ public class HBase_1_1_2_ListLookupService extends AbstractHBaseLookupService im
     }
 
     @Override
-    public Optional<Collection> lookup(Map<String, Object> coordinates) throws LookupFailureException {
+    public Optional<List> lookup(Map<String, Object> coordinates) throws LookupFailureException {
         if (coordinates.get(ROW_KEY_KEY) == null) {
             return Optional.empty();
         }
